@@ -1,0 +1,10 @@
+{
+  "drivers": [
+    "Canon Generic Plus PCL6",
+    "KONICA MINOLTA Universal PCL",
+    "PCL6 Driver for Universal Print",
+    "HP Universal Printing PCL 6",
+    "SHARP UD3 PCL6",
+	"HP PageWide Color MFP 780-785 PCL 6 (V3)"
+  ]
+}

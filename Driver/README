@@ -1,0 +1,32 @@
+## Printer driver installation.
+
+Download and extract the appropriate driver for your printer.
+
+Locate the INF file within the extracted driver files.
+
+Open install-driver-example.ps1 with a text editor.
+Replace ".\FOLDER\PRINTDRIVER.INF" with the actual path to your INF file.
+Replace "YOUR PRINT DRIVER NAME" with the actual driver name (found in the INF file).
+Save the script
+
+Package the folder with your driver and install-driver-example.ps1 with IntuneWinAppUtil.exe
+
+Upload it to Intune
+
+## Set detection to:
+Registry
+Key Path:
+Computer\HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Print\Environments\Windows x64\Drivers\Version-3\YOUR PRINT DRIVER NAME
+Detection method: Key exists
+
+
+## Examples:
+
+C:\Windows\SysNative\pnputil.exe /add-driver ".\gdi\BRPRC16A.INF" /install
+Add-PrinterDriver -Name "Brother DCP-L8410CDW series"
+
+C:\Windows\SysNative\pnputil.exe /add-driver ".\driver\CNP60MA64.INF" /install
+Add-PrinterDriver -Name "Canon Generic Plus PCL6"
+
+C:\Windows\SysNative\pnputil.exe /add-driver ".\UD3_02_PCL6_2201a\PCL6\64bit\sv0emenu.inf" /install
+Add-PrinterDriver -Name "SHARP UD3 PCL6"

@@ -1,0 +1,29 @@
+This script automatically creates .intunewin files for installing printer thru Intune and Company portal.
+Enter the printer name, IP address, color, double-sided print and driver name. If you use LPR, add the LPR queue as well, otherwise keep it empty.
+
+Some manufacturers do not support settings for colour, black and white, or double-sided printing thru PowerShell.
+
+You need to add printer drivers to Intune or the local PCs before using this script.
+
+Right click on Script-Printer-GUI.ps1 and "Run with PowerShell", it will open as administrator.
+If IntuneWinAppUtil.exe isn't in the script folder, it will ask if you want it to download it for you.
+Add your driver names to DriverNames.json
+
+Files in the folder:
+DriverNames.json
+readme.txt
+Script-Printer-GUI.ps1
+
+First time you run the script it will create a printer folder and ask if you want to download IntuneWinAppUtil.exe. 
+
+Each printer you create while create a subfolder with it's name and the following files.
+
+install-PrinterName.ps1		#Installation script
+uninstall-PrinterName.ps1	#Uninstallation script
+settings-PrinterName.txt	#Intune settings
+install-PrinterName.intunewin	#Intune win32 app
+
+
+
+2023-06-17
+Jakob 
