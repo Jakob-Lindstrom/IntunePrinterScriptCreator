@@ -23,6 +23,7 @@ uninstall-PrinterName.ps1	#Uninstallation script
 settings-PrinterName.txt	#Intune settings
 install-PrinterName.intunewin	#Intune win32 app
 
+![alt text](./img/gui.png)
 
 
 2023-06-17
