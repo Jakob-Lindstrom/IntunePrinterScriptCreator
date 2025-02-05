@@ -158,10 +158,13 @@ $button.Add_Click({
 	}
 
 
-	# Set default
-    if ($in_default) {
-        $setDefault = 'Get-CimInstance -Class Win32_Printer -Filter "Name="$printerName""' + [Environment]::NewLine + '	Invoke-CimMethod -InputObject $printerName -MethodName SetDefaultPrinter'
-    }
+	if ($in_default) {
+		$setDefault = 'Get-CimInstance -ClassName Win32_Printer -Filter "Name = ''$printerName''" | Invoke-CimMethod -MethodName SetDefaultPrinter'
+	}
+	
+	
+
+
 
 	# Generate PowerShell script
 	$script = @"
