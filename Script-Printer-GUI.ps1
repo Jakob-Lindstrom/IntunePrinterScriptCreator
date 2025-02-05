@@ -97,6 +97,11 @@ $textBox3.Location = New-Object System.Drawing.Point(150, 150)
 $textBox3.Size = New-Object System.Drawing.Size(200, 20)
 
 # Check Boxes
+$checkBoxDefault = New-Object System.Windows.Forms.CheckBox
+$checkBoxDefault.Location = New-Object System.Drawing.Point(50, 250)
+$checkBoxDefault.Size = New-Object System.Drawing.Size(100, 20)
+$checkBoxDefault.Text = "Default"
+
 $checkBoxColour = New-Object System.Windows.Forms.CheckBox
 $checkBoxColour.Location = New-Object System.Drawing.Point(150, 250)
 $checkBoxColour.Size = New-Object System.Drawing.Size(100, 20)
@@ -136,6 +141,7 @@ $button.Add_Click({
     $in_printerDriver = $comboBox.SelectedItem
     $in_colour = $checkBoxColour.Checked -eq $true
     $in_duplex = $checkBoxDuplex.Checked -eq $true
+	$in_default = $checkBoxDefault.Checked -eq $true
 
 	# Compute port name and the corresponding Add-PrinterPort command
 	if ([string]::IsNullOrWhiteSpace($in_lprQueue)) {
@@ -157,7 +163,13 @@ $button.Add_Click({
 		$setPrintConfig = "Set-PrintConfiguration -PrinterName `"$in_printerName`" -Color `$false"
 	}
 
-	# Generate the minimal PowerShell script
+
+	# Set default
+    if ($in_default) {
+        $setDefault = 'Get-CimInstance -Class Win32_Printer -Filter "Name="$printerName""' + [Environment]::NewLine + '	Invoke-CimMethod -InputObject $printerName -MethodName SetDefaultPrinter'
+    }
+
+	# Generate PowerShell script
 	$script = @"
 	# Pre-computed printer installation details
 	`$printerName = "$in_printerName"
@@ -175,6 +187,9 @@ $button.Add_Click({
 
 	# Configure Printer Settings
 	$setPrintConfig
+
+	#Default
+	$setDefault
 "@
 
 # Create the folder
@@ -186,7 +201,7 @@ $script | Out-File -FilePath "$PSScriptRoot\Printer\$folderName\install-$in_prin
 
 # Create the second PS1 file
 $removeScript = @"
-Remove-Printer -Name $in_printerName
+Remove-Printer -Name "$in_printerName"
 "@
 
 # Save the second script to a file inside the folder
@@ -234,8 +249,8 @@ Category: Printers
 Logo: Add transparent picture of the printer model
 
 Program:
-Installation Settings: powershell.exe -ExecutionPolicy Bypass -file install-$($global:GlobalPrinterName).ps1
-Uninstall Settings: powershell.exe -ExecutionPolicy Bypass -file uninstall-$($global:GlobalPrinterName).ps1
+Installation Settings: powershell.exe -ExecutionPolicy Bypass -file "install-$($global:GlobalPrinterName).ps1"
+Uninstall Settings: powershell.exe -ExecutionPolicy Bypass -file "uninstall-$($global:GlobalPrinterName).ps1"
 
 Detection Rule: 
 Rule type: Registry 
@@ -265,6 +280,7 @@ $form.Controls.Add($textBox1)
 $form.Controls.Add($textBox2)
 $form.Controls.Add($textBox3)
 $form.Controls.Add($comboBox)
+$form.Controls.Add($checkBoxDefault)
 $form.Controls.Add($checkBoxColour)
 $form.Controls.Add($checkBoxDuplex)
 $form.Controls.Add($button)
