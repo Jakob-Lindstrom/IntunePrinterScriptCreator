@@ -2,7 +2,6 @@
 #
 # A printer driver must be uploaded to intune before using this script.
 #
-# 
 # Add your driver names in DriverNames.json
 #
 # Jakob Lindstrom 2023-06-17
@@ -24,7 +23,6 @@ if ($myWindowsPrincipal.IsInRole($adminRole))
 }
 else
 {
- 
     $newProcess = New-Object System.Diagnostics.ProcessStartInfo "PowerShell";
     $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
 	$newProcess.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$($MyInvocation.MyCommand.Definition)`""
@@ -34,21 +32,6 @@ else
     Exit
 }
 
-# Check if IntuneWinAppUtil.exe exists in the current directory
-$intuneWinAppPath = Join-Path $PSScriptRoot "IntuneWinAppUtil.exe"
-if (-not (Test-Path -Path $intuneWinAppPath -PathType Leaf)) {
-    $result = [System.Windows.Forms.MessageBox]::Show("IntuneWinAppUtil.exe not found. Do you want to download it?", "Download IntuneWinAppUtil.exe", [System.Windows.Forms.MessageBoxButtons]::YesNo)
-    
-    if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
-        # Download IntuneWinAppUtil.exe from the GitHub URL
-        $downloadUrl = "https://github.com/microsoft/Microsoft-Win32-Content-Prep-Tool/raw/master/IntuneWinAppUtil.exe"
-        $webClient = New-Object System.Net.WebClient
-        $webClient.DownloadFile($downloadUrl, $intuneWinAppPath)
-    } else {
-        [System.Windows.Forms.MessageBox]::Show("Cannot proceed without IntuneWinAppUtil.exe.", "Download Canceled", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-        Exit
-    }
-}
 
 # Creating a folder in the same place as the script
 New-Item -ItemType Directory -Path "$PSScriptRoot\Printer" -Force
@@ -59,7 +42,7 @@ $global:GlobalPrinterName = ""
 
 # GUI form
 $form = New-Object System.Windows.Forms.Form
-$form.Size = New-Object System.Drawing.Size(400, 420)
+$form.Size = New-Object System.Drawing.Size(400, 460) # Increased height to accommodate the LPR Port
 $form.Text = "Intune Printer Script"
 
 # Labels
@@ -81,7 +64,12 @@ $label3.Text = "LPR Queue"
 $label4 = New-Object System.Windows.Forms.Label
 $label4.Location = New-Object System.Drawing.Point(50, 200)
 $label4.Size = New-Object System.Drawing.Size(100, 20)
-$label4.Text = "Printer Driver"
+$label4.Text = "LPR Port"
+
+$label5 = New-Object System.Windows.Forms.Label
+$label5.Location = New-Object System.Drawing.Point(50, 250)
+$label5.Size = New-Object System.Drawing.Size(100, 20)
+$label5.Text = "Printer Driver"
 
 # Text Boxes
 $textBox1 = New-Object System.Windows.Forms.TextBox
@@ -96,19 +84,31 @@ $textBox3 = New-Object System.Windows.Forms.TextBox
 $textBox3.Location = New-Object System.Drawing.Point(150, 150)
 $textBox3.Size = New-Object System.Drawing.Size(200, 20)
 
+# Combo Box for LPR Port
+$lprPortComboBox = New-Object System.Windows.Forms.ComboBox
+$lprPortComboBox.Location = New-Object System.Drawing.Point(150, 200)
+$lprPortComboBox.Size = New-Object System.Drawing.Size(200, 20)
+# Add LPR options (LPR1, LPR2, LPR3, etc.)
+1..8 | ForEach-Object { $lprPortComboBox.Items.Add("LPR$_") }
+
+# Combo Box for Printer Driver
+$comboBox = New-Object System.Windows.Forms.ComboBox
+$comboBox.Location = New-Object System.Drawing.Point(150, 250)
+$comboBox.Size = New-Object System.Drawing.Size(200, 20)
+
 # Check Boxes
 $checkBoxDefault = New-Object System.Windows.Forms.CheckBox
-$checkBoxDefault.Location = New-Object System.Drawing.Point(50, 250)
+$checkBoxDefault.Location = New-Object System.Drawing.Point(50, 300)
 $checkBoxDefault.Size = New-Object System.Drawing.Size(100, 20)
 $checkBoxDefault.Text = "Default"
 
 $checkBoxColour = New-Object System.Windows.Forms.CheckBox
-$checkBoxColour.Location = New-Object System.Drawing.Point(150, 250)
+$checkBoxColour.Location = New-Object System.Drawing.Point(150, 300)
 $checkBoxColour.Size = New-Object System.Drawing.Size(100, 20)
 $checkBoxColour.Text = "Colour"
 
 $checkBoxDuplex = New-Object System.Windows.Forms.CheckBox
-$checkBoxDuplex.Location = New-Object System.Drawing.Point(260, 250)
+$checkBoxDuplex.Location = New-Object System.Drawing.Point(260, 300)
 $checkBoxDuplex.Size = New-Object System.Drawing.Size(100, 20)
 $checkBoxDuplex.Text = "Duplex"
 
@@ -117,23 +117,16 @@ $driversJsonPath = "$PSScriptRoot\DriverNames.json"
 $driversData = Get-Content -Raw -Path $driversJsonPath | ConvertFrom-Json
 $driverNames = $driversData.drivers
 
-# Combo box
-$comboBox = New-Object System.Windows.Forms.ComboBox
-$comboBox.Location = New-Object System.Drawing.Point(150, 200)
-$comboBox.Size = New-Object System.Drawing.Size(200, 20)
-
 # Add the driver names to the combobox
 $driverNames | ForEach-Object {
     $comboBox.Items.Add($_)
 }
 
-
-
 # Button for PS1 file
 $button = New-Object System.Windows.Forms.Button
-$button.Location = New-Object System.Drawing.Point(145, 300)
+$button.Location = New-Object System.Drawing.Point(145, 340)
 $button.Size = New-Object System.Drawing.Size(100, 30)
-$button.Text = "Create PS1 File"
+$button.Text = "Create Printer"
 $button.Add_Click({
     $in_printerName = $textBox1.Text
     $in_ipAddress = $textBox2.Text
@@ -142,13 +135,14 @@ $button.Add_Click({
     $in_colour = $checkBoxColour.Checked -eq $true
     $in_duplex = $checkBoxDuplex.Checked -eq $true
 	$in_default = $checkBoxDefault.Checked -eq $true
+	$selectedLPRPort = $lprPortComboBox.SelectedItem
 
 	# Compute port name and the corresponding Add-PrinterPort command
 	if ([string]::IsNullOrWhiteSpace($in_lprQueue)) {
 		$portName = "IP_$in_ipAddress"
 		$addPortCommand = "Add-PrinterPort -Name `"$portName`" -PrinterHostAddress `"$in_ipAddress`""
 	} else {
-		$portName = "LPR1_$in_ipAddress"
+		$portName = "$selectedLPRPort" + "_" + "$in_ipAddress"
 		$addPortCommand = "Add-PrinterPort -Name `"$portName`" -LprQueueName `"$in_lprQueue`" -LprHostAddress `"$in_ipAddress`""
 	}
 
@@ -220,23 +214,38 @@ $global:GlobalPrinterName = $in_printerName
 
 # Button for executing IntuneWinAppUtil
 $intuneButton = New-Object System.Windows.Forms.Button
-$intuneButton.Location = New-Object System.Drawing.Point(255, 300)
+$intuneButton.Location = New-Object System.Drawing.Point(255, 340)
 $intuneButton.Size = New-Object System.Drawing.Size(100, 30)
 $intuneButton.Text = "Create intunewin"
 $intuneButton.Enabled = $false  # Set the initial state to disabled
 $intuneButton.Add_Click({
+    # Check if IntuneWinAppUtil.exe exists in the current directory
+    $intuneWinAppPath = Join-Path $PSScriptRoot "IntuneWinAppUtil.exe"
+    if (-not (Test-Path -Path $intuneWinAppPath -PathType Leaf)) {
+        $result = [System.Windows.Forms.MessageBox]::Show("IntuneWinAppUtil.exe not found. Do you want to download it?", "Download IntuneWinAppUtil.exe", [System.Windows.Forms.MessageBoxButtons]::YesNo)
+        
+        if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+            # Download IntuneWinAppUtil.exe from the GitHub URL
+            $downloadUrl = "https://github.com/microsoft/Microsoft-Win32-Content-Prep-Tool/raw/master/IntuneWinAppUtil.exe"
+            $webClient = New-Object System.Net.WebClient
+            $webClient.DownloadFile($downloadUrl, $intuneWinAppPath)
+        } else {
+            [System.Windows.Forms.MessageBox]::Show("Cannot proceed without IntuneWinAppUtil.exe.", "Download Canceled", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            Exit
+        }
+    }
+
+    # After IntuneWinAppUtil.exe is confirmed or downloaded, proceed with the intunewin creation
     $currentFolderPath = $PSScriptRoot
     $printerFolderPath = Join-Path $currentFolderPath "Printer"
     $folderFullPath = Join-Path $printerFolderPath $global:GlobalPrinterName
-	
-    $intuneWinApp = "$PSScriptRoot\IntuneWinAppUtil.exe"
-	$setupFile = "$folderFullPath\install-$($global:GlobalPrinterName).ps1"
-	
-	$Arguments = "-q -c ""$folderFullPath"" -s ""$setupFile"" -o ""$folderFullPath"""
-	
-	try {
-		Start-Process -FilePath $intuneWinApp -ArgumentList $Arguments
-		$configFilePath = Join-Path $folderFullPath "settings-$($global:GlobalPrinterName).txt"
+    
+    $setupFile = "$folderFullPath\install-$($global:GlobalPrinterName).ps1"
+    $Arguments = "-q -c ""$folderFullPath"" -s ""$setupFile"" -o ""$folderFullPath"""
+    
+    try {
+        Start-Process -FilePath $intuneWinAppPath -ArgumentList $Arguments
+        $configFilePath = Join-Path $folderFullPath "settings-$($global:GlobalPrinterName).txt"
         $configContents = @"
 Intune Configuration:
 
@@ -264,11 +273,10 @@ Automatically install: Yes
 Supersedence: Set supersedence if this printer is replacing an old printer with a new name.
 "@
         $configContents | Out-File -FilePath $configFilePath
-	} catch {
-		Write-Host "Error occurred: $_"
-	}
+    } catch {
+        Write-Host "Error occurred: $_"
+    }
 })
-
 
 
 # Add elements to the form
@@ -276,9 +284,11 @@ $form.Controls.Add($label1)
 $form.Controls.Add($label2)
 $form.Controls.Add($label3)
 $form.Controls.Add($label4)
+$form.Controls.Add($label5)
 $form.Controls.Add($textBox1)
 $form.Controls.Add($textBox2)
 $form.Controls.Add($textBox3)
+$form.Controls.Add($lprPortComboBox)
 $form.Controls.Add($comboBox)
 $form.Controls.Add($checkBoxDefault)
 $form.Controls.Add($checkBoxColour)
